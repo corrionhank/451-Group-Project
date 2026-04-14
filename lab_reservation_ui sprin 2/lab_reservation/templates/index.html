@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Equipment Reservation System</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f4f5f7; color: #1a1a1a; display: flex; flex-direction: row; height: 100vh; overflow: hidden; }
+
+  /* Sidebar */
+  #sidebar { width: 200px; min-width: 200px; max-width: 200px; background: #1e2130; color: #cdd0d8; display: flex; flex-direction: column; flex-shrink: 0; flex-grow: 0; position: relative; z-index: 1; }
+  #sidebar h1 { font-size: 14px; font-weight: 600; color: #fff; padding: 20px 16px 12px; border-bottom: 1px solid #2e3145; letter-spacing: 0.04em; }
+  #sidebar nav { flex: 1; padding: 8px 0; }
+  #sidebar nav button { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: none; color: #9aa0ae; font-size: 13px; padding: 9px 16px; cursor: pointer; text-align: left; border-radius: 0; transition: background 0.15s, color 0.15s; }
+  #sidebar nav button:hover { background: #272b3d; color: #e0e3ea; }
+  #sidebar nav button.active { background: #2d3250; color: #fff; border-left: 3px solid #5c7cfa; }
+  #sidebar .section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #555c72; padding: 12px 16px 4px; }
+
+  /* Main */
+  #main { flex: 1 1 0%; min-width: 0; max-width: calc(100% - 200px); display: flex; flex-direction: column; overflow: hidden; }
+  #topbar { background: #fff; border-bottom: 1px solid #e2e4ea; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+  #topbar h2 { font-size: 17px; font-weight: 600; }
+  #topbar .subtitle { font-size: 12px; color: #777; margin-top: 2px; }
+  #content { flex: 1; overflow-y: auto; overflow-x: auto; padding: 24px; min-width: 0; }
+
+  /* Alerts */
+  .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+  .alert.error { background: #fdecea; color: #b71c1c; border: 1px solid #f5c6cb; }
+  .alert.success { background: #e8f5e9; color: #1b5e20; border: 1px solid #c8e6c9; }
+  .alert.show { display: block; }
+
+  /* Cards & layout */
+  .card { background: #fff; border-radius: 10px; border: 1px solid #e2e4ea; margin-bottom: 20px; overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid #e2e4ea; display: flex; align-items: center; justify-content: space-between; }
+  .card-header h3 { font-size: 14px; font-weight: 600; }
+  .card-body { padding: 20px; }
+
+  /* Forms */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 500; }
+  .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #d0d4de; border-radius: 6px; font-size: 13px; outline: none; }
+  .form-group input:focus, .form-group select:focus { border-color: #5c7cfa; box-shadow: 0 0 0 3px rgba(92,124,250,0.12); }
+
+  /* Buttons */
+  .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.88; }
+  .btn-primary { background: #5c7cfa; color: #fff; }
+  .btn-danger { background: #e53935; color: #fff; }
+  .btn-warning { background: #fb8c00; color: #fff; }
+  .btn-success { background: #43a047; color: #fff; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-ghost { background: transparent; border: 1px solid #d0d4de; color: #444; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; width: 100%; }
+  table { min-width: 600px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f7f8fb; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 12px; color: #555; border-bottom: 1px solid #e2e4ea; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+  .empty-row td { text-align: center; color: #999; padding: 28px; font-style: italic; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+  .badge-available { background: #e8f5e9; color: #2e7d32; }
+  .badge-unavailable { background: #fdecea; color: #b71c1c; }
+  .badge-maintenance { background: #fff3e0; color: #e65100; }
+  .badge-pending { background: #fff8e1; color: #f57f17; }
+  .badge-approved { background: #e8f5e9; color: #2e7d32; }
+  .badge-rejected { background: #fdecea; color: #b71c1c; }
+  .badge-completed { background: #e3f2fd; color: #1565c0; }
+  .badge-student { background: #ede7f6; color: #4527a0; }
+  .badge-researcher { background: #e0f7fa; color: #00695c; }
+  .badge-admin { background: #fce4ec; color: #880e4f; }
+
+  /* Report select */
+  .report-select-wrap { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 20px; }
+  .report-select-wrap select { flex: 1; padding: 9px 10px; border: 1px solid #d0d4de; border-radius: 6px; font-size: 13px; }
+  .report-desc { font-size: 13px; color: #666; margin-bottom: 16px; padding: 10px 14px; background: #f7f8fb; border-radius: 6px; border-left: 3px solid #5c7cfa; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 24px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; margin-bottom: 18px; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>Lab Reservation</h1>
+  <nav>
+    <div class="section-label">Tables</div>
+    <button class="active" onclick="showTab('users')">Users</button>
+    <button onclick="showTab('equipment')">Equipment</button>
+    <button onclick="showTab('reservations')">Reservations</button>
+    <button onclick="showTab('usage_log')">Usage Log</button>
+    <div class="section-label">Analytics</div>
+    <button onclick="showTab('reports')">Reports</button>
+  </nav>
+</div>
+
+<div id="main">
+  <div id="topbar">
+    <div>
+      <h2 id="page-title">Users</h2>
+      <div class="subtitle" id="page-subtitle">Manage all user accounts</div>
+    </div>
+    <button class="btn btn-primary" id="add-btn" onclick="openAddModal()">+ Add New</button>
+  </div>
+
+  <div id="content">
+    <div class="alert error" id="alert-error"></div>
+    <div class="alert success" id="alert-success"></div>
+
+    <!-- USERS TAB -->
+    <div id="tab-users" class="tab">
+      <div class="card">
+        <div class="card-header"><h3>All Users</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"><tr class="empty-row"><td colspan="7">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- EQUIPMENT TAB -->
+    <div id="tab-equipment" class="tab" style="display:none">
+      <div class="card">
+        <div class="card-header"><h3>All Equipment</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Serial #</th><th>Availability</th><th>Building</th><th>Room</th><th>Actions</th></tr></thead>
+            <tbody id="equipment-tbody"><tr class="empty-row"><td colspan="7">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESERVATIONS TAB -->
+    <div id="tab-reservations" class="tab" style="display:none">
+      <div class="card">
+        <div class="card-header"><h3>All Reservations</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>User</th><th>Equipment</th><th>Start</th><th>End</th><th>Status</th><th>Approved By</th><th>Actions</th></tr></thead>
+            <tbody id="reservations-tbody"><tr class="empty-row"><td colspan="8">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- USAGE LOG TAB -->
+    <div id="tab-usage_log" class="tab" style="display:none">
+      <div class="card">
+        <div class="card-header"><h3>Usage Log</h3><span style="font-size:12px;color:#888">Auto-populated when reservations complete</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Log ID</th><th>Reservation</th><th>User</th><th>Equipment</th><th>Actual Start</th><th>Actual End</th><th>Notes</th></tr></thead>
+            <tbody id="usage_log-tbody"><tr class="empty-row"><td colspan="7">Loading...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS TAB -->
+    <div id="tab-reports" class="tab" style="display:none">
+      <div class="card">
+        <div class="card-header"><h3>Advanced Retrieval Queries</h3></div>
+        <div class="card-body">
+          <div class="report-select-wrap">
+            <select id="report-select" onchange="loadReport()">
+              <option value="">Select a report</option>
+              <option value="all_reservations">Q1: All reservations with user and equipment names</option>
+              <option value="approved_with_admin">Q2: Approved reservations with admin name</option>
+              <option value="currently_reserved">Q3: Equipment currently reserved</option>
+              <option value="usage_with_info">Q4: Usage log with reservation and equipment info</option>
+              <option value="reservations_per_user">Q5: Reservation count per user (GROUP BY)</option>
+              <option value="overlapping">Q6: Overlapping reservations (self-JOIN)</option>
+              <option value="pending_with_location">Q7: Pending reservations with location</option>
+              <option value="by_building">Q8: Reservations in Science Hall</option>
+              <option value="completed_duration">Q9: Completed reservations with duration</option>
+              <option value="never_reserved">Q10: Users who never made a reservation</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadReport()">Run</button>
+          </div>
+          <div class="report-desc" id="report-desc" style="display:none"></div>
+          <div class="table-wrap">
+            <table>
+              <thead id="report-thead"></thead>
+              <tbody id="report-tbody"><tr class="empty-row"><td colspan="5">Select a report above to run it.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">Add</h3>
+    <div id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentTab = 'users';
+let modalMode = 'add';
+let editId = null;
+let usersCache = [];
+let equipmentCache = [];
+
+const tabMeta = {
+  users:       { title: 'Users',        subtitle: 'Manage all user accounts' },
+  equipment:   { title: 'Equipment',    subtitle: 'View and manage lab equipment' },
+  reservations:{ title: 'Reservations', subtitle: 'Create and manage equipment reservations' },
+  usage_log:   { title: 'Usage Log',    subtitle: 'Historical record of completed reservations' },
+  reports:     { title: 'Reports',      subtitle: '10 advanced JOIN queries for data analysis' },
+};
+
+const reportDescs = {
+  all_reservations:    'Lists every reservation joined with the user name and equipment name. (JOIN: Reservations → Users, Equipment)',
+  approved_with_admin: 'Shows approved reservations and which admin approved them. (JOIN: Reservations → Users → Admins → Users)',
+  currently_reserved:  'Equipment that currently has a pending or approved reservation. (JOIN: Equipment → Reservations)',
+  usage_with_info:     'Full usage history joined with reservation and equipment details. (JOIN: Usage_Log → Reservations → Equipment)',
+  reservations_per_user:'Count of reservations per user using GROUP BY. (LEFT JOIN: Users → Reservations)',
+  overlapping:         'Finds any two reservations that overlap for the same equipment. (Self-JOIN: Reservations × Reservations)',
+  pending_with_location:'Pending reservations with building and room info. (JOIN: Reservations → Equipment)',
+  by_building:         'All reservations for equipment in Science Hall. (JOIN: Reservations → Equipment, WHERE building)',
+  completed_duration:  'Completed reservations with actual duration in minutes. (JOIN: Reservations → Usage_Log → Equipment)',
+  never_reserved:      'Users who have never made any reservation. (LEFT JOIN + WHERE NULL)',
+};
+
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('#sidebar nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  document.querySelectorAll('#sidebar nav button')[['users','equipment','reservations','usage_log','reports'].indexOf(tab)].classList.add('active');
+  document.getElementById('page-title').textContent = tabMeta[tab].title;
+  document.getElementById('page-subtitle').textContent = tabMeta[tab].subtitle;
+  document.getElementById('add-btn').style.display = tab === 'reports' || tab === 'usage_log' ? 'none' : '';
+  currentTab = tab;
+  clearAlerts();
+  loadTab(tab);
+}
+
+function loadTab(tab) {
+  if (tab === 'users') loadUsers();
+  else if (tab === 'equipment') loadEquipment();
+  else if (tab === 'reservations') loadReservations();
+  else if (tab === 'usage_log') loadUsageLog();
+}
+
+function showError(msg) {
+  const el = document.getElementById('alert-error');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('alert-success').classList.remove('show');
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+function showSuccess(msg) {
+  const el = document.getElementById('alert-success');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('alert-error').classList.remove('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+function clearAlerts() {
+  document.getElementById('alert-error').classList.remove('show');
+  document.getElementById('alert-success').classList.remove('show');
+}
+
+// Users
+async function loadUsers() {
+  const res = await fetch('/api/users');
+  usersCache = await res.json();
+  const tbody = document.getElementById('users-tbody');
+  if (!usersCache.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No users found.</td></tr>'; return; }
+  tbody.innerHTML = usersCache.map(u => `
+    <tr>
+      <td>${u.user_id}</td>
+      <td>${u.first_name} ${u.last_name}</td>
+      <td>${u.email}</td>
+      <td><span class="badge badge-${u.role}">${u.role}</span></td>
+      <td>${u.is_verified ? 'Yes' : 'No'}</td>
+      <td>${u.created_at ? u.created_at.split('T')[0] : u.created_at}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="openEditModal('users',${u.user_id})">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteRecord('users',${u.user_id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Equipment
+async function loadEquipment() {
+  const res = await fetch('/api/equipment');
+  equipmentCache = await res.json();
+  const tbody = document.getElementById('equipment-tbody');
+  if (!equipmentCache.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No equipment found.</td></tr>'; return; }
+  tbody.innerHTML = equipmentCache.map(e => `
+    <tr>
+      <td>${e.equipment_id}</td>
+      <td>${e.name}</td>
+      <td>${e.serial_number || '—'}</td>
+      <td><span class="badge badge-${e.availability}">${e.availability}</span></td>
+      <td>${e.building || '—'}</td>
+      <td>${e.room_no || '—'}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="openEditModal('equipment',${e.equipment_id})">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteRecord('equipment',${e.equipment_id})">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Reservations
+async function loadReservations() {
+  if (!usersCache.length) { const r = await fetch('/api/users'); usersCache = await r.json(); }
+  if (!equipmentCache.length) { const r = await fetch('/api/equipment'); equipmentCache = await r.json(); }
+  const res = await fetch('/api/reservations');
+  const data = await res.json();
+  const tbody = document.getElementById('reservations-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No reservations found.</td></tr>'; return; }
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td>${r.reservation_id}</td>
+      <td>${r.user_name}</td>
+      <td>${r.equipment_name}</td>
+      <td>${r.start_time}</td>
+      <td>${r.end_time}</td>
+      <td><span class="badge badge-${r.status}">${r.status}</span></td>
+      <td>${r.admin_name || '—'}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="openEditModal('reservations',${r.reservation_id})">Update</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteRecord('reservations',${r.reservation_id})">Cancel</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Usage Log
+async function loadUsageLog() {
+  const res = await fetch('/api/usage_log');
+  const data = await res.json();
+  const tbody = document.getElementById('usage_log-tbody');
+  if (!data.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No log entries yet.</td></tr>'; return; }
+  tbody.innerHTML = data.map(l => `
+    <tr>
+      <td>${l.log_id}</td>
+      <td>${l.reservation_id}</td>
+      <td>${l.user_name}</td>
+      <td>${l.equipment_name}</td>
+      <td>${l.actual_start || '—'}</td>
+      <td>${l.actual_end || '—'}</td>
+      <td>${l.notes || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+// Reports
+async function loadReport() {
+  const report = document.getElementById('report-select').value;
+  if (!report) return;
+  document.getElementById('report-desc').style.display = 'block';
+  document.getElementById('report-desc').textContent = reportDescs[report] || '';
+  const res = await fetch('/api/reports/' + report);
+  const data = await res.json();
+  const thead = document.getElementById('report-thead');
+  const tbody = document.getElementById('report-tbody');
+  if (!data.length) {
+    thead.innerHTML = '';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No results returned.</td></tr>';
+    return;
+  }
+  const cols = Object.keys(data[0]);
+  thead.innerHTML = '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+  tbody.innerHTML = data.map(row => '<tr>' + cols.map(c => `<td>${row[c] ?? '—'}</td>`).join('') + '</tr>').join('');
+}
+
+// Modal
+function openAddModal() {
+  modalMode = 'add';
+  editId = null;
+  document.getElementById('modal-title').textContent = 'Add ' + tabMeta[currentTab].title.slice(0,-1);
+  document.getElementById('modal-body').innerHTML = getFormHTML(currentTab, null);
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+async function openEditModal(tab, id) {
+  modalMode = 'edit';
+  editId = id;
+  let data = null;
+  if (tab === 'users') data = usersCache.find(u => u.user_id === id);
+  if (tab === 'equipment') data = equipmentCache.find(e => e.equipment_id === id);
+  if (tab === 'reservations') { const res = await fetch('/api/reservations'); const all = await res.json(); data = all.find(r => r.reservation_id === id); }
+  document.getElementById('modal-title').textContent = 'Edit ' + tab.charAt(0).toUpperCase() + tab.slice(1,-1);
+  document.getElementById('modal-body').innerHTML = getFormHTML(tab, data);
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+
+function getFormHTML(tab, data) {
+  if (tab === 'users') return `
+    <div class="form-grid">
+      <div class="form-group"><label>First Name *</label><input id="f_first_name" value="${data?.first_name||''}"></div>
+      <div class="form-group"><label>Last Name *</label><input id="f_last_name" value="${data?.last_name||''}"></div>
+      <div class="form-group"><label>Email *</label><input id="f_email" type="email" value="${data?.email||''}"></div>
+      <div class="form-group"><label>Role *</label><select id="f_role">
+        <option value="student" ${data?.role==='student'?'selected':''}>Student</option>
+        <option value="researcher" ${data?.role==='researcher'?'selected':''}>Researcher</option>
+        <option value="admin" ${data?.role==='admin'?'selected':''}>Admin</option>
+      </select></div>
+    </div>
+    ${!data ? '<div class="form-group"><label>Password</label><input id="f_password" type="password" placeholder="Leave blank for default"></div>' : ''}
+  `;
+  if (tab === 'equipment') return `
+    <div class="form-grid">
+      <div class="form-group"><label>Name *</label><input id="f_name" value="${data?.name||''}"></div>
+      <div class="form-group"><label>Serial Number</label><input id="f_serial_number" value="${data?.serial_number||''}"></div>
+      <div class="form-group"><label>Availability *</label><select id="f_availability">
+        <option value="available" ${data?.availability==='available'?'selected':''}>Available</option>
+        <option value="unavailable" ${data?.availability==='unavailable'?'selected':''}>Unavailable</option>
+        <option value="maintenance" ${data?.availability==='maintenance'?'selected':''}>Maintenance</option>
+      </select></div>
+      <div class="form-group"><label>Building</label><input id="f_building" value="${data?.building||''}"></div>
+      <div class="form-group"><label>Room No</label><input id="f_room_no" value="${data?.room_no||''}"></div>
+      <div class="form-group"><label>Tags</label><input id="f_tags" value="${data?.tags||''}"></div>
+    </div>
+    <div class="form-group"><label>Description</label><input id="f_description" value="${data?.description||''}"></div>
+  `;
+  if (tab === 'reservations') {
+    if (modalMode === 'edit') return `
+      <p style="font-size:13px;color:#555;margin-bottom:12px">Update reservation #${data?.reservation_id} status and approval.</p>
+      <div class="form-grid">
+        <div class="form-group"><label>Status</label><select id="f_status">
+          <option value="pending" ${data?.status==='pending'?'selected':''}>Pending</option>
+          <option value="approved" ${data?.status==='approved'?'selected':''}>Approved</option>
+          <option value="rejected" ${data?.status==='rejected'?'selected':''}>Rejected</option>
+          <option value="completed" ${data?.status==='completed'?'selected':''}>Completed</option>
+        </select></div>
+        <div class="form-group"><label>Approved By (Admin ID)</label><input id="f_approved_by" type="number" value="${data?.approved_by||''}" placeholder="Must be an admin ID"></div>
+      </div>
+    `;
+    const userOpts = usersCache.map(u => `<option value="${u.user_id}">${u.first_name} ${u.last_name} (${u.role})</option>`).join('');
+    const eqOpts = equipmentCache.filter(e => e.availability === 'available').map(e => `<option value="${e.equipment_id}">${e.name} - ${e.building}</option>`).join('');
+    return `
+      <div class="form-grid">
+        <div class="form-group"><label>User *</label><select id="f_user_id">${userOpts}</select></div>
+        <div class="form-group"><label>Equipment * (available only)</label><select id="f_equipment_id">${eqOpts}</select></div>
+        <div class="form-group"><label>Start Time *</label><input id="f_start_time" type="datetime-local"></div>
+        <div class="form-group"><label>End Time *</label><input id="f_end_time" type="datetime-local"></div>
+      </div>
+    `;
+  }
+  return '';
+}
+
+async function saveModal() {
+  clearAlerts();
+  const tab = currentTab;
+  let body = {};
+  if (tab === 'users') {
+    body = { first_name: v('f_first_name'), last_name: v('f_last_name'), email: v('f_email'), role: v('f_role') };
+    if (modalMode === 'add') body.password_hash = v('f_password') || 'hashed_pw';
+    if (!body.first_name || !body.last_name || !body.email) { showError('First name, last name and email are required.'); return; }
+  }
+  if (tab === 'equipment') {
+    body = { name: v('f_name'), serial_number: v('f_serial_number'), availability: v('f_availability'), building: v('f_building'), room_no: v('f_room_no'), tags: v('f_tags'), description: v('f_description') };
+    if (!body.name) { showError('Equipment name is required.'); return; }
+  }
+  if (tab === 'reservations') {
+    if (modalMode === 'add') {
+      body = { user_id: v('f_user_id'), equipment_id: v('f_equipment_id'), start_time: v('f_start_time'), end_time: v('f_end_time') };
+      if (!body.start_time || !body.end_time) { showError('Start and end time are required.'); return; }
+      body.start_time = body.start_time.replace('T', ' ');
+      body.end_time = body.end_time.replace('T', ' ');
+    } else {
+      body = { status: v('f_status'), approved_by: v('f_approved_by') || null };
+    }
+  }
+
+  const url = modalMode === 'add' ? `/api/${tab}` : `/api/${tab}/${editId}`;
+  const method = modalMode === 'add' ? 'POST' : 'PUT';
+  const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const result = await res.json();
+  if (result.success) {
+    showSuccess(modalMode === 'add' ? 'Record added successfully.' : 'Record updated successfully.');
+    closeModal();
+    loadTab(tab);
+  } else {
+    showError(result.error || 'An error occurred.');
+  }
+}
+
+async function deleteRecord(tab, id) {
+  if (!confirm('Are you sure you want to delete this record? This may cascade to related records.')) return;
+  const res = await fetch(`/api/${tab}/${id}`, { method: 'DELETE' });
+  const result = await res.json();
+  if (result.success) { showSuccess('Record deleted.'); loadTab(tab); }
+  else showError(result.error || 'Delete failed.');
+}
+
+function v(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+// init
+loadUsers();
+</script>
+</body>
+</html>
