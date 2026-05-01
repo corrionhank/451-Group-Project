@@ -109,7 +109,14 @@
       <h2 id="page-title">Users</h2>
       <div class="subtitle" id="page-subtitle">Manage all user accounts</div>
     </div>
-    <button class="btn btn-primary" id="add-btn" onclick="openAddModal()">+ Add New</button>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:13px;color:#555;">
+        <strong>{{ user_name }}</strong>
+        <span class="badge badge-{{ user_role }}" style="margin-left:4px;">{{ user_role }}</span>
+      </span>
+      <button class="btn btn-primary" id="add-btn" onclick="openAddModal()">+ Add New</button>
+      <a href="/logout" class="btn btn-ghost" style="text-decoration:none;">Logout</a>
+    </div>
   </div>
 
   <div id="content">

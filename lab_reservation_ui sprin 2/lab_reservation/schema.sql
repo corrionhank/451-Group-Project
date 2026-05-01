@@ -49,3 +49,11 @@ CREATE TABLE IF NOT EXISTS Usage_Log (
     notes TEXT,
     FOREIGN KEY (reservation_id) REFERENCES Reservations(reservation_id) ON DELETE SET NULL
 );
+
+CREATE TRIGGER IF NOT EXISTS auto_log_completion
+AFTER UPDATE OF status ON Reservations
+WHEN NEW.status = 'completed'
+BEGIN
+    INSERT OR IGNORE INTO Usage_Log (reservation_id, actual_start, actual_end, notes)
+    VALUES (NEW.reservation_id, NEW.start_time, NEW.end_time, 'Auto-logged on completion');
+END;

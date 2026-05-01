@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — Lab Reservation System</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #1e2130; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .card { background: #fff; border-radius: 14px; width: 440px; max-width: 95vw; box-shadow: 0 8px 40px rgba(0,0,0,0.35); overflow: hidden; }
+  .card-top { background: #2d3250; padding: 28px 36px 24px; text-align: center; }
+  .card-top h1 { font-size: 13px; color: #9aa0ae; font-weight: 400; letter-spacing: 0.03em; margin-bottom: 6px; }
+  .card-top h2 { font-size: 22px; font-weight: 700; color: #fff; }
+  .card-body { padding: 32px 36px 28px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+  input, select { width: 100%; padding: 10px 12px; border: 1px solid #d0d4de; border-radius: 7px; font-size: 14px; outline: none; background: #fff; transition: border-color 0.15s, box-shadow 0.15s; }
+  input:focus, select:focus { border-color: #5c7cfa; box-shadow: 0 0 0 3px rgba(92,124,250,0.12); }
+  .btn { width: 100%; padding: 11px; background: #5c7cfa; color: #fff; border: none; border-radius: 7px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.88; }
+  .error { background: #fdecea; color: #b71c1c; border: 1px solid #f5c6cb; border-radius: 7px; padding: 10px 12px; font-size: 13px; margin-bottom: 18px; }
+  .footer-link { text-align: center; margin-top: 20px; font-size: 13px; color: #777; }
+  .footer-link a { color: #5c7cfa; text-decoration: none; font-weight: 500; }
+  .footer-link a:hover { text-decoration: underline; }
+  .note { text-align: center; margin-top: 12px; font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-top">
+    <h1>Research Lab Reservation System</h1>
+    <h2>Create Account</h2>
+  </div>
+  <div class="card-body">
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST" action="/register">
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name *</label>
+          <input type="text" name="first_name" placeholder="Jane" required autofocus>
+        </div>
+        <div class="form-group">
+          <label>Last Name *</label>
+          <input type="text" name="last_name" placeholder="Smith" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>University Email *</label>
+        <input type="email" name="email" placeholder="jane.smith@uni.edu" required>
+      </div>
+      <div class="form-group">
+        <label>Password *</label>
+        <input type="password" name="password" placeholder="Choose a password" required>
+      </div>
+      <div class="form-group">
+        <label>Role *</label>
+        <select name="role">
+          <option value="student">Student</option>
+          <option value="researcher">Researcher</option>
+        </select>
+      </div>
+      <button type="submit" class="btn">Create Account</button>
+    </form>
+    <div class="footer-link">Already have an account? <a href="/login">Sign in here</a></div>
+    <p class="note">Admin accounts are created by system administrators.</p>
+  </div>
+</div>
+</body>
+</html>

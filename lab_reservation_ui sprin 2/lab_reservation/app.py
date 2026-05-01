@@ -1,8 +1,11 @@
-from flask import Flask, render_template, request, jsonify, g
+from flask import Flask, render_template, request, jsonify, g, session, redirect, url_for
 import sqlite3
 import os
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
+app.secret_key = 'cpts451-lab-booking-demo-2026'
 DATABASE = 'lab_reservation.db'
 
 def get_db():
@@ -19,40 +22,138 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
 def init_db():
     with app.app_context():
         db = get_db()
         with open('schema.sql', 'r') as f:
             db.executescript(f.read())
-        # Seed sample data if empty
         if db.execute("SELECT COUNT(*) FROM Users").fetchone()[0] == 0:
-            db.executescript("""
-                INSERT INTO Users (first_name, last_name, email, password_hash, role, is_verified)
-                VALUES
-                  ('Alice', 'Admin', 'alice@uni.edu', 'hashed_pw', 'admin', 1),
-                  ('Bob', 'Student', 'bob@uni.edu', 'hashed_pw', 'student', 1),
-                  ('Carol', 'Davis', 'carol@uni.edu', 'hashed_pw', 'researcher', 1),
-                  ('Grace', 'Lee', 'grace@uni.edu', 'hashed_pw', 'student', 0);
-                INSERT INTO Admins (admin_id) VALUES (1);
-                INSERT INTO Equipment (name, description, serial_number, tags, availability, building, room_no)
-                VALUES
-                  ('Microscope', 'High resolution microscope', 'SN12345', 'bio,optics', 'available', 'Science Hall', '101'),
-                  ('Centrifuge', 'High-speed centrifuge', 'SN67890', 'chem', 'available', 'Science Hall', '102'),
-                  ('3D Printer', 'Dual extruder', 'SN11111', 'fab', 'available', 'Engineering Bldg', '201');
-                INSERT INTO Reservations (user_id, equipment_id, approved_by, start_time, end_time, status)
-                VALUES
-                  (2, 1, 1, '2026-04-01 10:00:00', '2026-04-01 12:00:00', 'completed'),
-                  (2, 2, NULL, '2026-04-10 09:00:00', '2026-04-10 11:00:00', 'pending'),
-                  (3, 3, 1, '2026-04-12 14:00:00', '2026-04-12 16:00:00', 'approved');
-                INSERT INTO Usage_Log (reservation_id, actual_start, actual_end, notes)
-                VALUES (1, '2026-04-01 10:00:00', '2026-04-01 12:00:00', 'Auto-logged on completion');
-            """)
+            demo_pw = generate_password_hash('demo123')
+            db.execute(
+                "INSERT INTO Users (first_name, last_name, email, password_hash, role, is_verified) VALUES (?,?,?,?,?,?)",
+                ('Alice', 'Admin', 'alice@uni.edu', demo_pw, 'admin', 1)
+            )
+            db.execute(
+                "INSERT INTO Users (first_name, last_name, email, password_hash, role, is_verified) VALUES (?,?,?,?,?,?)",
+                ('Bob', 'Student', 'bob@uni.edu', demo_pw, 'student', 1)
+            )
+            db.execute(
+                "INSERT INTO Users (first_name, last_name, email, password_hash, role, is_verified) VALUES (?,?,?,?,?,?)",
+                ('Carol', 'Davis', 'carol@uni.edu', demo_pw, 'researcher', 1)
+            )
+            db.execute(
+                "INSERT INTO Users (first_name, last_name, email, password_hash, role, is_verified) VALUES (?,?,?,?,?,?)",
+                ('Grace', 'Lee', 'grace@uni.edu', demo_pw, 'student', 0)
+            )
+            db.execute("INSERT INTO Admins (admin_id) VALUES (1)")
+            db.execute(
+                "INSERT INTO Equipment (name, description, serial_number, tags, availability, building, room_no) VALUES (?,?,?,?,?,?,?)",
+                ('Microscope', 'High resolution microscope', 'SN12345', 'bio,optics', 'available', 'Science Hall', '101')
+            )
+            db.execute(
+                "INSERT INTO Equipment (name, description, serial_number, tags, availability, building, room_no) VALUES (?,?,?,?,?,?,?)",
+                ('Centrifuge', 'High-speed centrifuge', 'SN67890', 'chem', 'available', 'Science Hall', '102')
+            )
+            db.execute(
+                "INSERT INTO Equipment (name, description, serial_number, tags, availability, building, room_no) VALUES (?,?,?,?,?,?,?)",
+                ('3D Printer', 'Dual extruder', 'SN11111', 'fab', 'available', 'Engineering Bldg', '201')
+            )
+            db.execute(
+                "INSERT INTO Reservations (user_id, equipment_id, approved_by, start_time, end_time, status) VALUES (?,?,?,?,?,?)",
+                (2, 1, 1, '2026-04-01 10:00:00', '2026-04-01 12:00:00', 'completed')
+            )
+            db.execute(
+                "INSERT INTO Reservations (user_id, equipment_id, approved_by, start_time, end_time, status) VALUES (?,?,?,?,?,?)",
+                (2, 2, None, '2026-04-10 09:00:00', '2026-04-10 11:00:00', 'pending')
+            )
+            db.execute(
+                "INSERT INTO Reservations (user_id, equipment_id, approved_by, start_time, end_time, status) VALUES (?,?,?,?,?,?)",
+                (3, 3, 1, '2026-04-12 14:00:00', '2026-04-12 16:00:00', 'approved')
+            )
+            db.execute(
+                "INSERT INTO Usage_Log (reservation_id, actual_start, actual_end, notes) VALUES (?,?,?,?)",
+                (1, '2026-04-01 10:00:00', '2026-04-01 12:00:00', 'Auto-logged on completion')
+            )
             db.commit()
+
+# Auth routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if 'user_id' in session:
+        return redirect('/')
+    error = None
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '')
+        db = get_db()
+        user = db.execute("SELECT * FROM Users WHERE email=?", (email,)).fetchone()
+        if user:
+            stored = user['password_hash']
+            # Support legacy seeded accounts with placeholder hash
+            if stored == 'hashed_pw':
+                valid = (password == 'demo123')
+            else:
+                valid = check_password_hash(stored, password)
+            if valid:
+                session['user_id'] = user['user_id']
+                session['user_name'] = f"{user['first_name']} {user['last_name']}"
+                session['role'] = user['role']
+                return redirect('/')
+        error = 'Invalid email or password.'
+    return render_template('login.html', error=error)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if 'user_id' in session:
+        return redirect('/')
+    error = None
+    if request.method == 'POST':
+        first_name = request.form.get('first_name', '').strip()
+        last_name  = request.form.get('last_name', '').strip()
+        email      = request.form.get('email', '').strip()
+        password   = request.form.get('password', '')
+        role       = request.form.get('role', 'student')
+        if role not in ('student', 'researcher'):
+            error = 'Admin accounts cannot be self-registered. Please select student or researcher.'
+        elif not all([first_name, last_name, email, password]):
+            error = 'All fields are required.'
+        else:
+            db = get_db()
+            try:
+                pw_hash = generate_password_hash(password)
+                cur = db.execute(
+                    "INSERT INTO Users (first_name, last_name, email, password_hash, role, is_verified) VALUES (?,?,?,?,?,1)",
+                    (first_name, last_name, email, pw_hash, role)
+                )
+                db.commit()
+                session['user_id'] = cur.lastrowid
+                session['user_name'] = f"{first_name} {last_name}"
+                session['role'] = role
+                return redirect('/')
+            except sqlite3.IntegrityError:
+                error = 'An account with that email already exists.'
+    return render_template('register.html', error=error)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
 
 # Main page
 @app.route('/')
+@login_required
 def index():
-    return render_template('index.html')
+    return render_template('index.html',
+                           user_name=session.get('user_name'),
+                           user_role=session.get('role'))
 
 # USERS
 @app.route('/api/users', methods=['GET'])
@@ -66,9 +167,11 @@ def add_user():
     data = request.json
     db = get_db()
     try:
+        raw_pw = data.get('password_hash', '')
+        pw_hash = generate_password_hash(raw_pw) if raw_pw else generate_password_hash('demo123')
         cur = db.execute(
             "INSERT INTO Users (first_name, last_name, email, password_hash, role) VALUES (?,?,?,?,?)",
-            (data['first_name'], data['last_name'], data['email'], data.get('password_hash','hashed_pw'), data['role'])
+            (data['first_name'], data['last_name'], data['email'], pw_hash, data['role'])
         )
         user_id = cur.lastrowid
         if data['role'] == 'admin':
@@ -166,13 +269,11 @@ def get_reservations():
 def add_reservation():
     data = request.json
     db = get_db()
-    # Business rule: check equipment availability
     eq = db.execute("SELECT availability FROM Equipment WHERE equipment_id=?", (data['equipment_id'],)).fetchone()
     if not eq:
         return jsonify({'success': False, 'error': 'Equipment not found'}), 400
     if eq['availability'] != 'available':
         return jsonify({'success': False, 'error': f"Equipment is not available for booking (status: {eq['availability']})"}), 400
-    # Business rule: check for overlapping reservations
     overlap = db.execute("""
         SELECT COUNT(*) as cnt FROM Reservations
         WHERE equipment_id=? AND status IN ('pending','approved')
@@ -180,7 +281,6 @@ def add_reservation():
     """, (data['equipment_id'], data['start_time'], data['end_time'])).fetchone()
     if overlap['cnt'] > 0:
         return jsonify({'success': False, 'error': 'Equipment already has a conflicting reservation for this time slot'}), 400
-    # Business rule: end_time must be after start_time
     if data['end_time'] <= data['start_time']:
         return jsonify({'success': False, 'error': 'End time must be after start time'}), 400
     try:
@@ -197,7 +297,6 @@ def add_reservation():
 def update_reservation(rid):
     data = request.json
     db = get_db()
-    # Business rule: only admins can approve
     if 'approved_by' in data and data['approved_by']:
         is_admin = db.execute("SELECT 1 FROM Admins WHERE admin_id=?", (data['approved_by'],)).fetchone()
         if not is_admin:
@@ -207,15 +306,7 @@ def update_reservation(rid):
             "UPDATE Reservations SET status=?, approved_by=? WHERE reservation_id=?",
             (data.get('status'), data.get('approved_by'), rid)
         )
-        # Business rule: auto-log on completion
-        if data.get('status') == 'completed':
-            res = db.execute("SELECT * FROM Reservations WHERE reservation_id=?", (rid,)).fetchone()
-            existing = db.execute("SELECT 1 FROM Usage_Log WHERE reservation_id=?", (rid,)).fetchone()
-            if not existing:
-                db.execute(
-                    "INSERT INTO Usage_Log (reservation_id, actual_start, actual_end, notes) VALUES (?,?,?,?)",
-                    (rid, res['start_time'], res['end_time'], 'Auto-logged on completion')
-                )
+        # Usage_Log is auto-populated by the database trigger auto_log_completion
         db.commit()
         return jsonify({'success': True})
     except sqlite3.IntegrityError as e:
