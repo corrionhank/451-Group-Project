@@ -94,8 +94,10 @@
   <h1>Lab Reservation</h1>
   <nav>
     <div class="section-label">Tables</div>
+    {% if user_role == 'admin' %}
     <button class="active" onclick="showTab('users')">Users</button>
-    <button onclick="showTab('equipment')">Equipment</button>
+    {% endif %}
+    <button {% if user_role != 'admin' %}class="active"{% endif %} onclick="showTab('equipment')">Equipment</button>
     <button onclick="showTab('reservations')">Reservations</button>
     <button onclick="showTab('usage_log')">Usage Log</button>
     <div class="section-label">Analytics</div>
@@ -222,7 +224,8 @@
 </div>
 
 <script>
-let currentTab = 'users';
+const userRole = "{{ user_role }}";
+let currentTab = userRole === 'admin' ? 'users' : 'equipment';
 let modalMode = 'add';
 let editId = null;
 let usersCache = [];
@@ -253,10 +256,15 @@ function showTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
   document.querySelectorAll('#sidebar nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + tab).style.display = 'block';
-  document.querySelectorAll('#sidebar nav button')[['users','equipment','reservations','usage_log','reports'].indexOf(tab)].classList.add('active');
+  const tabOrder = userRole === 'admin'
+    ? ['users','equipment','reservations','usage_log','reports']
+    : ['equipment','reservations','usage_log','reports'];
+  const btn = document.querySelectorAll('#sidebar nav button')[tabOrder.indexOf(tab)];
+  if (btn) btn.classList.add('active');
   document.getElementById('page-title').textContent = tabMeta[tab].title;
   document.getElementById('page-subtitle').textContent = tabMeta[tab].subtitle;
   document.getElementById('add-btn').style.display = tab === 'reports' || tab === 'usage_log' ? 'none' : '';
+  if (tab === 'users' && userRole !== 'admin') { showError('Access denied.'); return; }
   currentTab = tab;
   clearAlerts();
   loadTab(tab);
@@ -481,7 +489,7 @@ async function saveModal() {
   let body = {};
   if (tab === 'users') {
     body = { first_name: v('f_first_name'), last_name: v('f_last_name'), email: v('f_email'), role: v('f_role') };
-    if (modalMode === 'add') body.password_hash = v('f_password') || 'hashed_pw';
+    if (modalMode === 'add') body.password_hash = v('f_password') || 'changeme123';
     if (!body.first_name || !body.last_name || !body.email) { showError('First name, last name and email are required.'); return; }
   }
   if (tab === 'equipment') {
@@ -523,7 +531,8 @@ async function deleteRecord(tab, id) {
 function v(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 
 // init
-loadUsers();
+if (userRole === 'admin') loadUsers();
+else loadEquipment();
 </script>
 </body>
 </html>

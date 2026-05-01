@@ -30,6 +30,16 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+        if session.get('role') != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
 def init_db():
     with app.app_context():
         db = get_db()
@@ -157,12 +167,14 @@ def index():
 
 # USERS
 @app.route('/api/users', methods=['GET'])
+@login_required
 def get_users():
     db = get_db()
     users = db.execute("SELECT * FROM Users ORDER BY user_id").fetchall()
     return jsonify([dict(u) for u in users])
 
 @app.route('/api/users', methods=['POST'])
+@admin_required
 def add_user():
     data = request.json
     db = get_db()
@@ -182,6 +194,7 @@ def add_user():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/users/<int:uid>', methods=['PUT'])
+@admin_required
 def update_user(uid):
     data = request.json
     db = get_db()
@@ -200,6 +213,7 @@ def update_user(uid):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/users/<int:uid>', methods=['DELETE'])
+@admin_required
 def delete_user(uid):
     db = get_db()
     db.execute("DELETE FROM Users WHERE user_id=?", (uid,))
@@ -208,12 +222,14 @@ def delete_user(uid):
 
 # EQUIPMENT
 @app.route('/api/equipment', methods=['GET'])
+@login_required
 def get_equipment():
     db = get_db()
     eq = db.execute("SELECT * FROM Equipment ORDER BY equipment_id").fetchall()
     return jsonify([dict(e) for e in eq])
 
 @app.route('/api/equipment', methods=['POST'])
+@admin_required
 def add_equipment():
     data = request.json
     db = get_db()
@@ -228,6 +244,7 @@ def add_equipment():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/equipment/<int:eid>', methods=['PUT'])
+@admin_required
 def update_equipment(eid):
     data = request.json
     db = get_db()
@@ -242,6 +259,7 @@ def update_equipment(eid):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/equipment/<int:eid>', methods=['DELETE'])
+@admin_required
 def delete_equipment(eid):
     db = get_db()
     db.execute("DELETE FROM Equipment WHERE equipment_id=?", (eid,))
@@ -250,6 +268,7 @@ def delete_equipment(eid):
 
 # RESERVATIONS
 @app.route('/api/reservations', methods=['GET'])
+@login_required
 def get_reservations():
     db = get_db()
     rows = db.execute("""
@@ -266,6 +285,7 @@ def get_reservations():
     return jsonify([dict(r) for r in rows])
 
 @app.route('/api/reservations', methods=['POST'])
+@login_required
 def add_reservation():
     data = request.json
     db = get_db()
@@ -294,6 +314,7 @@ def add_reservation():
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/reservations/<int:rid>', methods=['PUT'])
+@admin_required
 def update_reservation(rid):
     data = request.json
     db = get_db()
@@ -313,6 +334,7 @@ def update_reservation(rid):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/reservations/<int:rid>', methods=['DELETE'])
+@admin_required
 def delete_reservation(rid):
     db = get_db()
     db.execute("DELETE FROM Reservations WHERE reservation_id=?", (rid,))
@@ -321,6 +343,7 @@ def delete_reservation(rid):
 
 # USAGE LOG
 @app.route('/api/usage_log', methods=['GET'])
+@login_required
 def get_usage_log():
     db = get_db()
     rows = db.execute("""
@@ -336,6 +359,7 @@ def get_usage_log():
 
 # ADVANCED QUERIES
 @app.route('/api/reports/<report>', methods=['GET'])
+@login_required
 def run_report(report):
     db = get_db()
     queries = {
